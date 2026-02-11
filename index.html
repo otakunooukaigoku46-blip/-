@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>查詢填表資料</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { padding: 5px 10px; margin-top: 10px; }
+    table { border-collapse: collapse; width: 60%; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    button.select-btn { margin: 3px; padding: 5px 8px; cursor: pointer; }
+    #matches p { margin: 5px 0; font-weight: bold; }
+    /* 等待動畫 */
+    .loading span {
+      display: inline-block;
+      animation: blink 1s infinite;
+      margin-right: 2px;
+    }
+    .loading span:nth-child(2) { animation-delay: 0.2s; }
+    .loading span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 20%, 50%, 80%, 100% { opacity: 1; }
+      40% { opacity: 0.3; }
+      60% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <h2>查詢填表資料</h2>
+  <input type="text" id="name" placeholder="輸入學生姓名">
+  <button onclick="query()">查詢</button>
+
+  <div id="matches"></div>
+  <div id="result"></div>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyDqD8bGFo7T18XZJouCGKgmldxusw1zLvXGoZiJPA02qVK7Z3tVS3TjpM9QTjJT7Zf/exec";
+
+    function query(selectedName) {
+      const nameInput = selectedName || document.getElementById("name").value.trim();
+      if (!nameInput) return alert("請輸入姓名");
+
+      const resultDiv = document.getElementById("result");
+      const matchesDiv = document.getElementById("matches");
+
+      // 顯示文字提示 + 動畫
+      matchesDiv.innerHTML = "";
+      resultDiv.innerHTML = `
+        <p>⏳ 查詢中，可能需要幾秒鐘，請耐心等待…</p>
+        <p class="loading"><span>.</span><span>.</span><span>.</span></p>
+      `;
+
+      fetch(WEBAPP_URL + "?name=" + encodeURIComponent(nameInput))
+        .then(res => res.json())
+        .then(data => {
+          resultDiv.innerHTML = ""; // 清掉提示文字
+          matchesDiv.innerHTML = "";
+
+          if (data.error) {
+            resultDiv.innerHTML = "<p>❌ " + data.error + "</p>";
+            return;
+          }
+
+          // 多筆匹配 → 顯示按鈕
+          if (data.matches) {
+            let html = "<p>找到多筆資料，請選擇學生：</p>";
+            data.matches.forEach(n => {
+              html += `<button class="select-btn" onclick="query('${n}')">${n}</button>`;
+            });
+            matchesDiv.innerHTML = html;
+            return;
+          }
+
+          // 單筆資料 → 顯示表格
+          let html = "<table>";
+          html += "<tr><th>欄位</th><th>資料</th></tr>";
+          for (let key in data) {
+            if (data[key] !== "" && data[key] != null) {
+              html += `<tr><td>${key}</td><td>${data[key]}</td></tr>`;
+            }
+          }
+          html += "</table>";
+          resultDiv.innerHTML = html;
+        })
+        .catch(err => {
+          resultDiv.innerHTML = "<p>查詢失敗</p>";
+          console.error(err);
+        });
+    }
+  </script>
+</body>
+</html>
